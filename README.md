@@ -1,7 +1,20 @@
-# Reference Architecture: Cross Account Continous Delivery CodePipeline
+# Cross Account AWS CI/CD
 
-This reference architecture demonstrates how to push code hosted in [AWS CodeCommit](https://aws.amazon.com/codecommit/) repository in Development Account,
-use [AWS CodeBuild](https://aws.amazon.com/codebuild/) to do application build, store the output artifacts in S3Bucket, validate your deployment then approve the changes to be deployed to the Production or deployment Account using [AWS CloudFormation](https://aws.amazon.com/cloudformation/). This orchestration of code movement from code checkin to deployment is securely handled by [AWS CodePipeline](https://aws.amazon.com/codepipeline/).
+This project addresses a critical business challenge: How do you efficiently migrate entire CI/CD infrastructure across AWS accounts repeatedly?
+
+## The Problem
+Imagine your finance team tells you: "We got $100K in AWS credits. How fast can you migrate everything?"
+This scenario happens more often than you'd think. Organizations frequently receive AWS credits through various programs, partnerships, or cost optimization strategies, but these credits come with expiration dates and account restrictions. The challenge becomes:
+- Complex infrastructure: Existing CI/CD pipelines, applications, and infrastructure need to be migrated without downtime
+- Manual processes: Traditional migration approaches are time-consuming, error-prone, and don't scale
+
+## Goals:
+- Deploy CI/CD pipelines in NEW account (Target)
+- Checkout code from OLD account (Development)
+- Maintain security isolation between accounts
+- Ensure seamless, automated integration
+
+## Solution Architecture
 
 ![](Architecture_diagrams/CrossAccount_CD.png)
 
@@ -9,7 +22,7 @@ use [AWS CodeBuild](https://aws.amazon.com/codebuild/) to do application build, 
 > You need to create the CodeCommit repository (steps below) before making the pipeline infrastructure. 
 > When creating the pipeline infrastructure, you can use the `singleClick_CD_pipeline.sh` script or else follow the "Walkthrough" section of the attached `Deployment_Guide.pdf` 
 
-![Deployment Guide](Deployment_Guide.pdf)
+[Deployment Guide](Deployment_Guide.pdf)
 
 
 #### Pre-requisites 
