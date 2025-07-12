@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates a CMK in KMS and grants access to other accounts
+Parameters:
+  DevAccount:
+    Description: AWS AccountNumber for dev
+    Type: Number
+  ProjectName:
+    Description: Name of the Build Project
+    Type: String
+    Default: SampleBuildProject
+  Environment:
+    Description: Name of the Environment, Kindly Follow the standards [Ex.]- Live - Qc - Dev
+    Type: String
+  CodeBuildCondition:
+    Description: Conditionally adds the access required by code build project role
+    Type: String
+    Default: false
+Conditions:
+  AddCodeBuildResource: !Equals [ !Ref CodeBuildCondition, true ]
+Resources:
+  KMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Used by Assumed Roles in Dev/Test/Prod accounts to Encrypt/Decrypt code
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: !Ref AWS::StackName
+        Statement:
+          -
+            Sid: Allows admin of the key
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action:
+              - "kms:Create*"
+              - "kms:Describe*"
+              - "kms:Enable*"
+              - "kms:List*"
+              - "kms:Put*"
+              - "kms:Update*"
+              - "kms:Revoke*"
+              - "kms:Disable*"
+              - "kms:Get*"
+              - "kms:Delete*"
+              - "kms:ScheduleKeyDeletion"
+              - "kms:CancelKeyDeletion"
+            Resource: "*"
+          -
+            Sid: Allow use of the key for CryptoGraphy
+            Effect: Allow
+            Principal:
+              AWS:
+                #- !Sub arn:aws:iam::${ProductionAccount}:root
+                - !Sub arn:aws:iam::${DevAccount}:root
+                - !Sub arn:aws:iam::${AWS::AccountId}:root
+                - !If
+
+                # In Bash script, wehn creating the pre-req stack, you have not created the codebuild-Role yet, so it does not make snese to add its role here
+                # what actually happen is, First in the bash script when it deployes the pre-req stack, it takes this conditon default value which is false, so it will not add the following role
+                # second: the script deploys the pipeline stack, it takes the condition of "PermitSourceStage" with false, which means it will not give the source stage permission to be able to assume the Codecommit role at DevAccount and work properly, but why? because the codebuild stage has not created yet and have no permissions to build anything, so
+                # the correct order should be, creating pre-req stack including KMS, creatung deploy stack including all stages with no permissions to do anything, then start giving the source and build stages thepermission to do everything.
+                # Note: the source stage could be given the permission at the first place when deploying codepipline stack, but it will bring the code and codebuild will not be able to build it because it has not given permission yet to use KMS, so i just update KMS first with codebuild role by updating pre-req stack, then update source stage to use required role by updating the codepipline stack
+
+                  - AddCodeBuildResource
+                #This role will be assumed by AWS CodeBuild to decrypt artifacts in the S3 bucket. 
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/${Environment}-${ProjectName}-CodeBuildRole"
+                  - !Ref AWS::NoValue
+            Action:
+              - kms:Encrypt   # codecommit needs to encrypt
+              - kms:Decrypt   # codebuild needs to decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: "*"
+  KMSAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub alias/codepipeline-crossaccounts
+      TargetKeyId: !Ref KMSKey
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: codepipeline-artifact-store-04
+    DeletionPolicy: Retain
+
+Outputs:
+  CMK:
+    Value: !GetAtt [KMSKey,Arn]
+  ArtifactBucket:
+    Value: !Ref ArtifactBucket
+
